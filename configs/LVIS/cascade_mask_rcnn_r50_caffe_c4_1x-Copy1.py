@@ -1,27 +1,36 @@
 # model settings
+norm_cfg = dict(type='BN', requires_grad=False)
 model = dict(
     type='CascadeRCNN',
     num_stages=3,
-    pretrained='torchvision://resnet101',
+    pretrained='open-mmlab://resnet50_caffe',
     backbone=dict(
         type='ResNet',
-        depth=101,
-        num_stages=4,
-        out_indices=(0, 1, 2, 3),
+        depth=50,
+        num_stages=3,
+        strides=(1, 2, 2),
+        dilations=(1, 1, 1),
+        out_indices=(2, ),
         frozen_stages=1,
-        style='pytorch'),
-    neck=dict(
-        type='FPN',
-        in_channels=[256, 512, 1024, 2048],
-        out_channels=256,
-        num_outs=5),
+        norm_cfg=norm_cfg,
+        norm_eval=True,
+        style='caffe'),
+    shared_head=dict(
+        type='ResLayer',
+        depth=50,
+        stage=3,
+        stride=2,
+        dilation=1,
+        style='caffe',
+        norm_cfg=norm_cfg,
+        norm_eval=True),
     rpn_head=dict(
         type='RPNHead',
-        in_channels=256,
-        feat_channels=256,
-        anchor_scales=[8],
+        in_channels=1024,
+        feat_channels=1024,
+        anchor_scales=[2, 4, 8, 16, 32],
         anchor_ratios=[0.5, 1.0, 2.0],
-        anchor_strides=[4, 8, 16, 32, 64],
+        anchor_strides=[16],
         target_means=[.0, .0, .0, .0],
         target_stds=[1.0, 1.0, 1.0, 1.0],
         loss_cls=dict(
@@ -29,17 +38,16 @@ model = dict(
         loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0)),
     bbox_roi_extractor=dict(
         type='SingleRoIExtractor',
-        roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
-        out_channels=256,
-        featmap_strides=[4, 8, 16, 32]),
+        roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),
+        out_channels=1024,
+        featmap_strides=[16]),
     bbox_head=[
         dict(
-            type='SharedFCBBoxHead',
-            num_fcs=2,
-            in_channels=256,
-            fc_out_channels=1024,
+            type='BBoxHead',
+            with_avg_pool=True,
             roi_feat_size=7,
-            num_classes=1231,
+            in_channels=2048,
+            num_classes=81,
             target_means=[0., 0., 0., 0.],
             target_stds=[0.1, 0.1, 0.2, 0.2],
             reg_class_agnostic=True,
@@ -47,12 +55,11 @@ model = dict(
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
             loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)),
         dict(
-            type='SharedFCBBoxHead',
-            num_fcs=2,
-            in_channels=256,
-            fc_out_channels=1024,
+            type='BBoxHead',
+            with_avg_pool=True,
             roi_feat_size=7,
-            num_classes=1231,
+            in_channels=2048,
+            num_classes=81,
             target_means=[0., 0., 0., 0.],
             target_stds=[0.05, 0.05, 0.1, 0.1],
             reg_class_agnostic=True,
@@ -60,12 +67,11 @@ model = dict(
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
             loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0)),
         dict(
-            type='SharedFCBBoxHead',
-            num_fcs=2,
-            in_channels=256,
-            fc_out_channels=1024,
+            type='BBoxHead',
+            with_avg_pool=True,
             roi_feat_size=7,
-            num_classes=1231,
+            in_channels=2048,
+            num_classes=81,
             target_means=[0., 0., 0., 0.],
             target_stds=[0.033, 0.033, 0.067, 0.067],
             reg_class_agnostic=True,
@@ -73,17 +79,13 @@ model = dict(
                 type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
             loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=1.0))
     ],
-    mask_roi_extractor=dict(
-        type='SingleRoIExtractor',
-        roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),
-        out_channels=256,
-        featmap_strides=[4, 8, 16, 32]),
+    mask_roi_extractor=None,
     mask_head=dict(
         type='FCNMaskHead',
-        num_convs=4,
-        in_channels=256,
+        num_convs=0,
+        in_channels=2048,
         conv_out_channels=256,
-        num_classes=1231,
+        num_classes=81,
         loss_mask=dict(
             type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)))
 # model training and testing settings
@@ -106,7 +108,7 @@ train_cfg = dict(
         debug=False),
     rpn_proposal=dict(
         nms_across_levels=False,
-        nms_pre=2000,
+        nms_pre=12000,
         nms_post=2000,
         max_num=2000,
         nms_thr=0.7,
@@ -125,7 +127,7 @@ train_cfg = dict(
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True),
-            mask_size=28,
+            mask_size=14,
             pos_weight=-1,
             debug=False),
         dict(
@@ -141,7 +143,7 @@ train_cfg = dict(
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True),
-            mask_size=28,
+            mask_size=14,
             pos_weight=-1,
             debug=False),
         dict(
@@ -157,7 +159,7 @@ train_cfg = dict(
                 pos_fraction=0.25,
                 neg_pos_ub=-1,
                 add_gt_as_proposals=True),
-            mask_size=28,
+            mask_size=14,
             pos_weight=-1,
             debug=False)
     ],
@@ -165,7 +167,7 @@ train_cfg = dict(
 test_cfg = dict(
     rpn=dict(
         nms_across_levels=False,
-        nms_pre=1000,
+        nms_pre=6000,
         nms_post=1000,
         max_num=1000,
         nms_thr=0.7,
@@ -177,10 +179,10 @@ test_cfg = dict(
         mask_thr_binary=0.5),
     keep_all_stages=False)
 # dataset settings
-dataset_type = 'LvisDataset'
-data_root = '/home/dataset/LVIS/'
+dataset_type = 'CocoDataset'
+data_root = 'data/coco/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[102.9801, 115.9465, 122.7717], std=[1.0, 1.0, 1.0], to_rgb=False)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
@@ -211,21 +213,21 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/train_labels.json',
+        ann_file=data_root + 'annotations/instances_train2017.json',
         img_prefix=data_root + 'train2017/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/val_labels.json',
+        ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/val_labels.json',
+        ann_file=data_root + 'annotations/instances_val2017.json',
         img_prefix=data_root + 'val2017/',
         pipeline=test_pipeline))
 # optimizer
-optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
@@ -247,7 +249,7 @@ log_config = dict(
 total_epochs = 12
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/cascade_mask_rcnn_r101_fpn_1x'
+work_dir = './work_dirs/cascade_mask_rcnn_r50_caffe_c4_1x'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

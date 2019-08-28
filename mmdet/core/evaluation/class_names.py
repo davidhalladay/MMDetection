@@ -12,6 +12,10 @@ def voc_classes():
         'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
     ]
 
+def lvis_classes():
+    CLASSES = []
+    for i in range(1,1231): CLASSES.append(str(i))
+    return CLASSES
 
 def imagenet_det_classes():
     return [
@@ -95,7 +99,8 @@ dataset_aliases = {
     'imagenet_vid': ['vid', 'imagenet_vid', 'ilsvrc_vid'],
     'coco': ['coco', 'mscoco', 'ms_coco'],
     'wider_face': ['WIDERFaceDataset', 'wider_face', 'WDIERFace'],
-    'cityscapes': ['cityscapes']
+    'cityscapes': ['cityscapes'],
+    'lvis': ['lvis']
 }
 
 
